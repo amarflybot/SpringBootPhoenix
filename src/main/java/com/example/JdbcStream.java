@@ -43,12 +43,14 @@ public class JdbcStream extends JdbcTemplate {
             Supplier<Spliterator<SqlRow>> supplier = () -> Spliterators.spliteratorUnknownSize(new Iterator<SqlRow>() {
                 @Override
                 public boolean hasNext() {
-                    return !rowSet.isLast();
+                    return rowSet.next();
                 }
 
                 @Override
                 public SqlRow next() {
-                    if (!rowSet.next()) {
+                    ResultSetWrappingSqlRowSet resultSetWrappingSqlRowSet = (ResultSetWrappingSqlRowSet) rowSet;
+                    PhoenixResultSet resultSet = (PhoenixResultSet) resultSetWrappingSqlRowSet.getResultSet();
+                    if (resultSet.getCurrentRow() == null) {
                         throw new NoSuchElementException();
                     }
                     return sqlRow;
