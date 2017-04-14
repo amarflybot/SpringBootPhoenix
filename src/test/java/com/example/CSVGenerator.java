@@ -37,8 +37,9 @@ public class CSVGenerator {
             list.add(String.valueOf(webStat.getDb()));
             list.add(String.valueOf(webStat.getCore()));
             CSVUtils.writeLine(writer, list);
+            System.out.println(webStat);
         }
-;
+
         writer.flush();
         writer.close();
 
@@ -52,7 +53,7 @@ public class CSVGenerator {
     }
 
     private String selectDomain(){
-        String[] domains = {"Salesforce.com","Apple.com","google.com","facebook.com","yahoo.com","microsoft.com"};
+        String[] domains = {"Salesforce.com","Apple.com","Google.com","Facebook.com","Yahoo.com","Microsoft.com"};
         int idx = new Random().nextInt(domains.length);
         String random = (domains[idx]);
         return random;

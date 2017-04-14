@@ -26,6 +26,7 @@ public class Config {
     @Bean
     JdbcTemplate jdbcTemplate(final DataSource dataSource) {
         JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+        jdbcTemplate.setFetchSize(10);
         return jdbcTemplate;
     }
 }

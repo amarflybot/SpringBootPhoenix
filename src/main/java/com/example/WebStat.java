@@ -78,4 +78,17 @@ public class WebStat implements Serializable{
         this.activeVisitor = activeVisitor;
         return this;
     }
+
+    @Override
+    public String toString() {
+        return "WebStat{" +
+                "host='" + host + '\'' +
+                ", domain='" + domain + '\'' +
+                ", feature='" + feature + '\'' +
+                ", date=" + date +
+                ", core=" + core +
+                ", db=" + db +
+                ", activeVisitor=" + activeVisitor +
+                '}';
+    }
 }

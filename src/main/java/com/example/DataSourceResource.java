@@ -4,22 +4,19 @@ import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.rowset.ResultSetWrappingSqlRowSet;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
 
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import java.io.*;
-import java.util.*;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -39,35 +36,57 @@ public class DataSourceResource {
     private Gson gson = new Gson();
 
     @GET
+    @Path("/getAll")
     @Produces(MediaType.APPLICATION_JSON)
     public Response getSomething() {
-
-        logger.info("new Request came!");
-        StreamingOutput stream = new StreamingOutput() {
-            @Override
-            public void write(OutputStream os) throws IOException, WebApplicationException {
-                Writer writer = new BufferedWriter(new OutputStreamWriter(os));
-                jdbcTemplate.query(
-                        "SELECT * FROM WEB_STAT", new Object[] {},
-                        (rs, rowNum) -> new WebStat().setHost(rs.getString("HOST"))
-                                .setDomain(rs.getString("DOMAIN"))
-                                .setFeature(rs.getString("FEATURE"))
-                                .setDate(rs.getDate("DATE"))
-                                .setCore(rs.getInt("CORE"))
-                                .setDb(rs.getInt("DB"))
-                                .setActiveVisitor(rs.getInt("ACTIVE_VISITOR"))
-                ).forEach(webStat -> {
-                    try {
-                        writer.write(gson.toJson(webStat));
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                });
-                writer.flush();
-            }
-        };
-
+        logger.info("new Request came to get All!");
+        StreamingOutput stream = getStreamingOutput("SELECT * FROM WEB_STAT", new Object[]{});
         return Response.ok(stream).build();
+    }
+
+    @GET
+    @Path("/getByDomain/{domain}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getByDomain(@PathParam("domain") String domain) {
+        logger.info("new Request came to Get By Domain!");
+        StreamingOutput stream = getStreamingOutput("SELECT * FROM WEB_STAT where DOMAIN = ?", new Object[]{domain});
+        return Response.ok(stream).build();
+    }
+
+    @GET
+    @Path("/getByHost/{host}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getByHost(@PathParam("host") String host) {
+        logger.info("new Request came to Get By host!");
+        StreamingOutput stream = getStreamingOutput("SELECT * FROM WEB_STAT where HOST = ?", new Object[]{host});
+        return Response.ok(stream).build();
+    }
+
+    private StreamingOutput getStreamingOutput(final String sql, final Object[] args) {
+        return new StreamingOutput() {
+                @Override
+                public void write(OutputStream os) throws IOException, WebApplicationException {
+                    Writer writer = new BufferedWriter(new OutputStreamWriter(os));
+                    jdbcTemplate.query(
+                            sql, args,
+                            (rs, rowNum) -> new WebStat().setHost(rs.getString("HOST"))
+                                    .setDomain(rs.getString("DOMAIN"))
+                                    .setFeature(rs.getString("FEATURE"))
+                                    .setDate(rs.getDate("DATE"))
+                                    .setCore(rs.getInt("CORE"))
+                                    .setDb(rs.getInt("DB"))
+                                    .setActiveVisitor(rs.getInt("ACTIVE_VISITOR"))
+                    ).forEach(webStat -> {
+                        try {
+                            writer.write(gson.toJson(webStat));
+                            writer.flush();
+                            //TimeUnit.MILLISECONDS.sleep(500);
+                        } catch (IOException e) {
+                            throw new RuntimeException("Cannot write to Stream back");
+                        }
+                    });
+                }
+            };
     }
 
     public <T> T streamQuery(String sql, Function<Stream<SqlRowSet>, ? extends T> streamer, Object... args) {
