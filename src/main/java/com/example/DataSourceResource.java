@@ -6,10 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.Assert;
 
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
@@ -42,91 +39,71 @@ public class DataSourceResource {
         return Response.ok(streamingOutput).build();
     }
 
-    /*@GET
+    @GET
     @Path("/getByDomain/{domain}")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getByDomain(@PathParam("domain") String domain) {
+    public Response getByDomain(@PathParam("domain") String domain) throws SQLException {
         logger.info("new Request came to Get By Domain!");
-        StreamingOutput stream = getStreamingOutput("SELECT * FROM WEB_STAT where DOMAIN = ?", new Object[]{domain});
-        return Response.ok(stream).build();
-    }*/
+        JdbcStream.StreamableQuery streamableQuery = jdbcStream.streamableQuery("SELECT * FROM WEB_STAT where DOMAIN = ?", new Object[]{domain});
+        StreamingOutput streamingOutput = getStreamingOutput(streamableQuery);
+        return Response.ok(streamingOutput).build();
+    }
 
-    /*@GET
+    @GET
     @Path("/getByHost/{host}")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getByHost(@PathParam("host") String host) {
+    public Response getByHost(@PathParam("host") String host) throws SQLException {
         logger.info("new Request came to Get By host!");
-        StreamingOutput stream = getStreamingOutput("SELECT * FROM WEB_STAT where HOST = ?", new Object[]{host});
-        return Response.ok(stream).build();
-    }*/
+        JdbcStream.StreamableQuery streamableQuery = jdbcStream.streamableQuery("SELECT * FROM WEB_STAT where HOST = ?", new Object[]{host});
+        StreamingOutput streamingOutput = getStreamingOutput(streamableQuery);
+        return Response.ok(streamingOutput).build();
+    }
 
     private StreamingOutput getStreamingOutput(final JdbcStream.StreamableQuery streamableQuery) {
         return new StreamingOutput() {
-                @Override
-                public void write(OutputStream os) throws IOException, WebApplicationException {
-                    Writer writer = new BufferedWriter(new OutputStreamWriter(os));
-                    try {
-                        streamableQuery
-                                .stream()
-                                .map(new Function<JdbcStream.SqlRow, WebStat>() {
-                                    @Override
-                                    public WebStat apply(JdbcStream.SqlRow sqlRow) {
-                                        try {
-                                            WebStat webStat = WebStatMapper.mapWebStat(sqlRow);
-                                            return webStat;
-                                        } catch (RuntimeException e) {
-                                            throw new RuntimeException("Cannot convert SqlRom to WebStat");
-                                        }
+            @Override
+            public void write(OutputStream os) throws IOException, WebApplicationException {
+                Writer writer = new BufferedWriter(new OutputStreamWriter(os));
+                writer.write("[");
+                final boolean[] first = {false};
+                try {
+                    streamableQuery
+                            .stream()
+                            .map(new Function<JdbcStream.SqlRow, WebStat>() {
+                                @Override
+                                public WebStat apply(JdbcStream.SqlRow sqlRow) {
+                                    try {
+                                        WebStat webStat = WebStatMapper.mapWebStat(sqlRow);
+                                        return webStat;
+                                    } catch (RuntimeException e) {
+                                        throw new RuntimeException("Cannot convert SqlRom to WebStat");
                                     }
-                                }).reduce(new BinaryOperator<WebStat>() {
-                            @Override
-                            public WebStat apply(WebStat o, WebStat o2) {
-                                Assert.notNull(o2, "Webstat cannot be null");
-                                try {
-                                    writer.write(gson.toJson(o2));
-                                    writer.flush();
-                                    //TimeUnit.MILLISECONDS.sleep(500);
-                                } catch (IOException e) {
-                                    throw new RuntimeException("Cannot write to Stream back");
                                 }
-                                return o;
+                            }).reduce(new BinaryOperator<WebStat>() {
+                        @Override
+                        public WebStat apply(WebStat o, WebStat o2) {
+                            Assert.notNull(o2, "Webstat cannot be null");
+                            try {
+                                if (first[0]) {
+                                    writer.write(",");
+                                }
+                                first[0] = true;
+                                writer.write(gson.toJson(o2));
+                                writer.flush();
+                                //TimeUnit.MILLISECONDS.sleep(500);
+                            } catch (IOException e) {
+                                throw new RuntimeException("Cannot write to Stream back");
                             }
-                        });
-                    } catch (SQLException e) {
-                        e.printStackTrace();
-                    }
-
-                    /*jdbcTemplate.query(
-                            sql, args,
-                            (rs, rowNum) -> new WebStat().setHost(rs.getString("HOST"))
-                                    .setDomain(rs.getString("DOMAIN"))
-                                    .setFeature(rs.getString("FEATURE"))
-                                    .setDate(rs.getDate("DATE"))
-                                    .setCore(rs.getInt("CORE"))
-                                    .setDb(rs.getInt("DB"))
-                                    .setActiveVisitor(rs.getInt("ACTIVE_VISITOR"))
-                    ).forEach(webStat -> {
-                        try {
-                            writer.write(gson.toJson(webStat));
-                            writer.flush();
-                            //TimeUnit.MILLISECONDS.sleep(500);
-                        } catch (IOException e) {
-                            throw new RuntimeException("Cannot write to Stream back");
+                            return o;
                         }
                     });
-
-                    rs -> {
-                                    new WebStat().setHost(rs.getString("HOST"))
-                                            .setDomain(rs.getString("DOMAIN"))
-                                            .setFeature(rs.getString("FEATURE"))
-                                            .setDate(new Date(rs.getTimestamp("DATE").getTime()))
-                                            .setCore(Integer.valueOf(rs.getString("CORE")))
-                                            .setDb(Integer.valueOf(rs.getString("DB")))
-                                            .setActiveVisitor(Integer.valueOf(rs.getString("ACTIVE_VISITOR")))
-                                })
-                    */
+                } catch (SQLException e) {
+                    e.printStackTrace();
                 }
-            };
+                writer.write("]");
+                writer.flush();
+            }
+        };
     }
 
 }
