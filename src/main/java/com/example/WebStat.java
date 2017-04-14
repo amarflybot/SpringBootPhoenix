@@ -1,6 +1,7 @@
 package com.example;
 
 import java.io.Serializable;
+import java.sql.Date;
 
 /**
  * Created by amarendra on 14/04/17.
@@ -10,7 +11,7 @@ public class WebStat implements Serializable{
     private String host;
     private String domain;
     private String feature;
-    private String date;
+    private Date date;
     private Integer core;
     private Integer db;
     private Integer activeVisitor;
@@ -42,11 +43,11 @@ public class WebStat implements Serializable{
         return this;
     }
 
-    public String getDate() {
+    public Date getDate() {
         return date;
     }
 
-    public WebStat setDate(String date) {
+    public WebStat setDate(Date date) {
         this.date = date;
         return this;
     }

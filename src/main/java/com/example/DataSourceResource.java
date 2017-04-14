@@ -42,6 +42,7 @@ public class DataSourceResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response getSomething() {
 
+        logger.info("new Request came!");
         StreamingOutput stream = new StreamingOutput() {
             @Override
             public void write(OutputStream os) throws IOException, WebApplicationException {
@@ -51,7 +52,7 @@ public class DataSourceResource {
                         (rs, rowNum) -> new WebStat().setHost(rs.getString("HOST"))
                                 .setDomain(rs.getString("DOMAIN"))
                                 .setFeature(rs.getString("FEATURE"))
-                                .setDate(rs.getString("DATE"))
+                                .setDate(rs.getDate("DATE"))
                                 .setCore(rs.getInt("CORE"))
                                 .setDb(rs.getInt("DB"))
                                 .setActiveVisitor(rs.getInt("ACTIVE_VISITOR"))
