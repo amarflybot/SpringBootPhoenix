@@ -4,22 +4,19 @@ import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.support.rowset.ResultSetWrappingSqlRowSet;
-import org.springframework.jdbc.support.rowset.SqlRowSet;
+import org.springframework.util.Assert;
 
-import javax.ws.rs.*;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import java.io.*;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
-import java.util.Spliterator;
-import java.util.Spliterators;
+import java.sql.SQLException;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 /**
  * Created by amarendra on 14/04/17.
@@ -31,43 +28,75 @@ public class DataSourceResource {
 
 
     @Autowired
-    private JdbcTemplate jdbcTemplate;
+    private JdbcStream jdbcStream;
 
     private Gson gson = new Gson();
 
     @GET
     @Path("/getAll")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getSomething() {
+    public Response getSomething() throws SQLException {
         logger.info("new Request came to get All!");
-        StreamingOutput stream = getStreamingOutput("SELECT * FROM WEB_STAT", new Object[]{});
-        return Response.ok(stream).build();
+        JdbcStream.StreamableQuery streamableQuery = jdbcStream.streamableQuery("SELECT * FROM WEB_STAT", new Object[]{});
+        StreamingOutput streamingOutput = getStreamingOutput(streamableQuery);
+        return Response.ok(streamingOutput).build();
     }
 
-    @GET
+    /*@GET
     @Path("/getByDomain/{domain}")
     @Produces(MediaType.APPLICATION_JSON)
     public Response getByDomain(@PathParam("domain") String domain) {
         logger.info("new Request came to Get By Domain!");
         StreamingOutput stream = getStreamingOutput("SELECT * FROM WEB_STAT where DOMAIN = ?", new Object[]{domain});
         return Response.ok(stream).build();
-    }
+    }*/
 
-    @GET
+    /*@GET
     @Path("/getByHost/{host}")
     @Produces(MediaType.APPLICATION_JSON)
     public Response getByHost(@PathParam("host") String host) {
         logger.info("new Request came to Get By host!");
         StreamingOutput stream = getStreamingOutput("SELECT * FROM WEB_STAT where HOST = ?", new Object[]{host});
         return Response.ok(stream).build();
-    }
+    }*/
 
-    private StreamingOutput getStreamingOutput(final String sql, final Object[] args) {
+    private StreamingOutput getStreamingOutput(final JdbcStream.StreamableQuery streamableQuery) {
         return new StreamingOutput() {
                 @Override
                 public void write(OutputStream os) throws IOException, WebApplicationException {
                     Writer writer = new BufferedWriter(new OutputStreamWriter(os));
-                    jdbcTemplate.query(
+                    try {
+                        streamableQuery
+                                .stream()
+                                .map(new Function<JdbcStream.SqlRow, WebStat>() {
+                                    @Override
+                                    public WebStat apply(JdbcStream.SqlRow sqlRow) {
+                                        try {
+                                            WebStat webStat = WebStatMapper.mapWebStat(sqlRow);
+                                            return webStat;
+                                        } catch (RuntimeException e) {
+                                            throw new RuntimeException("Cannot convert SqlRom to WebStat");
+                                        }
+                                    }
+                                }).reduce(new BinaryOperator<WebStat>() {
+                            @Override
+                            public WebStat apply(WebStat o, WebStat o2) {
+                                Assert.notNull(o2, "Webstat cannot be null");
+                                try {
+                                    writer.write(gson.toJson(o2));
+                                    writer.flush();
+                                    //TimeUnit.MILLISECONDS.sleep(500);
+                                } catch (IOException e) {
+                                    throw new RuntimeException("Cannot write to Stream back");
+                                }
+                                return o;
+                            }
+                        });
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
+
+                    /*jdbcTemplate.query(
                             sql, args,
                             (rs, rowNum) -> new WebStat().setHost(rs.getString("HOST"))
                                     .setDomain(rs.getString("DOMAIN"))
@@ -85,40 +114,19 @@ public class DataSourceResource {
                             throw new RuntimeException("Cannot write to Stream back");
                         }
                     });
+
+                    rs -> {
+                                    new WebStat().setHost(rs.getString("HOST"))
+                                            .setDomain(rs.getString("DOMAIN"))
+                                            .setFeature(rs.getString("FEATURE"))
+                                            .setDate(new Date(rs.getTimestamp("DATE").getTime()))
+                                            .setCore(Integer.valueOf(rs.getString("CORE")))
+                                            .setDb(Integer.valueOf(rs.getString("DB")))
+                                            .setActiveVisitor(Integer.valueOf(rs.getString("ACTIVE_VISITOR")))
+                                })
+                    */
                 }
             };
-    }
-
-    public <T> T streamQuery(String sql, Function<Stream<SqlRowSet>, ? extends T> streamer, Object... args) {
-        return jdbcTemplate.query(sql, resultSet -> {
-            final SqlRowSet rowSet = new ResultSetWrappingSqlRowSet(resultSet);
-            final boolean parallel = false;
-
-            // The ResultSet API has a slight impedance mismatch with Iterators, so this conditional
-            // simply returns an empty iterator if there are no results
-            if (!rowSet.next()) {
-                return streamer.apply(StreamSupport.stream(Spliterators.emptySpliterator(), parallel));
-            }
-
-            Spliterator<SqlRowSet> spliterator = Spliterators.spliteratorUnknownSize(new Iterator<SqlRowSet>() {
-                private boolean first = true;
-
-                @Override
-                public boolean hasNext() {
-                    return !rowSet.isLast();
-                }
-
-                @Override
-                public SqlRowSet next() {
-                    if (!first || !rowSet.next()) {
-                        throw new NoSuchElementException();
-                    }
-                    first = false; // iterators can be unwieldy sometimes
-                    return rowSet;
-                }
-            }, Spliterator.IMMUTABLE);
-            return streamer.apply(StreamSupport.stream(spliterator, parallel));
-        }, args);
     }
 
 }
