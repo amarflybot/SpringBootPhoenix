@@ -12,8 +12,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import java.io.*;
 import java.sql.SQLException;
-import java.util.function.BinaryOperator;
-import java.util.function.Function;
 
 /**
  * Created by amarendra on 14/04/17.
@@ -69,34 +67,28 @@ public class DataSourceResource {
                 try {
                     streamableQuery
                             .stream()
-                            .map(new Function<JdbcStream.SqlRow, WebStat>() {
-                                @Override
-                                public WebStat apply(JdbcStream.SqlRow sqlRow) {
-                                    try {
-                                        WebStat webStat = WebStatMapper.mapWebStat(sqlRow);
-                                        return webStat;
-                                    } catch (RuntimeException e) {
-                                        throw new RuntimeException("Cannot convert SqlRom to WebStat");
+                            .map(sqlRow -> {
+                                try {
+                                    WebStat webStat = WebStatMapper.mapWebStat(sqlRow);
+                                    return webStat;
+                                } catch (RuntimeException e) {
+                                    throw new RuntimeException("Cannot convert SqlRom to WebStat");
+                                }
+                            }).reduce((webStat1, webStat2) -> {
+                                Assert.notNull(webStat1, "Webstat cannot be null");
+                                try {
+                                    if (first[0]) {
+                                        writer.write(",");
                                     }
+                                    first[0] = true;
+                                    writer.write(gson.toJson(webStat2));
+                                    writer.flush();
+                                    //TimeUnit.MILLISECONDS.sleep(500);
+                                } catch (IOException e) {
+                                    throw new RuntimeException("Cannot write to Stream back");
                                 }
-                            }).reduce(new BinaryOperator<WebStat>() {
-                        @Override
-                        public WebStat apply(WebStat o, WebStat o2) {
-                            Assert.notNull(o2, "Webstat cannot be null");
-                            try {
-                                if (first[0]) {
-                                    writer.write(",");
-                                }
-                                first[0] = true;
-                                writer.write(gson.toJson(o2));
-                                writer.flush();
-                                //TimeUnit.MILLISECONDS.sleep(500);
-                            } catch (IOException e) {
-                                throw new RuntimeException("Cannot write to Stream back");
-                            }
-                            return o;
-                        }
-                    });
+                                return webStat1;
+                            });
                 } catch (SQLException e) {
                     e.printStackTrace();
                 }
