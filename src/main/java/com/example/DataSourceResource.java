@@ -79,6 +79,9 @@ public class DataSourceResource {
                                 try {
                                     if (first[0]) {
                                         writer.write(",");
+                                    } else if (!first[0]){
+                                        writer.write(gson.toJson(webStat1));
+                                        writer.write(",");
                                     }
                                     first[0] = true;
                                     writer.write(gson.toJson(webStat2));
