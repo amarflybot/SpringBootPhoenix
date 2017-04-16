@@ -22,14 +22,4 @@ public class SpringBootPhoenixApplication extends SpringBootServletInitializer {
 				.configure(new SpringApplicationBuilder(SpringBootPhoenixApplication.class))
 				.run(args);
 	}
-
-	@Bean
-	CommandLineRunner commandLineRunner(final DataSource dataSource){
-		return new CommandLineRunner() {
-			@Override
-			public void run(String... strings) throws Exception {
-				System.out.println(dataSource);
-			}
-		};
-	}
 }
