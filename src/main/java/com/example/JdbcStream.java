@@ -1,7 +1,8 @@
 package com.example;
 
 
-import org.apache.phoenix.jdbc.PhoenixResultSet;
+import com.zaxxer.hikari.HikariDataSource;
+import com.zaxxer.hikari.pool.HikariProxyResultSet;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceUtils;
@@ -9,9 +10,7 @@ import org.springframework.jdbc.support.rowset.ResultSetWrappingSqlRowSet;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.springframework.stereotype.Component;
 
-import javax.sql.DataSource;
 import java.io.Closeable;
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -31,7 +30,7 @@ import java.util.stream.StreamSupport;
 public class JdbcStream extends JdbcTemplate {
 
     @Autowired
-    public JdbcStream(DataSource dataSource) {
+    public JdbcStream(HikariDataSource dataSource) {
         super(dataSource);
     }
 
@@ -49,9 +48,13 @@ public class JdbcStream extends JdbcTemplate {
                 @Override
                 public SqlRow next() {
                     ResultSetWrappingSqlRowSet resultSetWrappingSqlRowSet = (ResultSetWrappingSqlRowSet) rowSet;
-                    PhoenixResultSet resultSet = (PhoenixResultSet) resultSetWrappingSqlRowSet.getResultSet();
-                    if (resultSet.getCurrentRow() == null) {
-                        throw new NoSuchElementException();
+                    HikariProxyResultSet resultSet = (HikariProxyResultSet) resultSetWrappingSqlRowSet.getResultSet();
+                    try {
+                        if (resultSet.isClosed()) {
+                            throw new NoSuchElementException();
+                        }
+                    } catch (SQLException e) {
+                        throw new RuntimeException("Error handling the resultSet");
                     }
                     return sqlRow;
                 }
@@ -90,9 +93,13 @@ public class JdbcStream extends JdbcTemplate {
                 @Override
                 public SqlRow next() {
                     ResultSetWrappingSqlRowSet resultSetWrappingSqlRowSet = (ResultSetWrappingSqlRowSet) rowSet;
-                    PhoenixResultSet resultSet = (PhoenixResultSet) resultSetWrappingSqlRowSet.getResultSet();
-                    if (resultSet.getCurrentRow() == null) {
-                        throw new NoSuchElementException();
+                    HikariProxyResultSet resultSet = (HikariProxyResultSet) resultSetWrappingSqlRowSet.getResultSet();
+                    try {
+                        if (resultSet.isClosed()) {
+                            throw new NoSuchElementException();
+                        }
+                    } catch (SQLException e) {
+                        throw new RuntimeException("Error handling the resultSet");
                     }
                     return sqlRow;
                 }
@@ -103,7 +110,7 @@ public class JdbcStream extends JdbcTemplate {
         ;
 
         @Override
-        public void close() throws IOException {
+        public void close() {
             DataSourceUtils.releaseConnection(connection, getDataSource());
         }
     }

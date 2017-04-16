@@ -1,16 +1,13 @@
 package com.example;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.SimpleDriverDataSource;
 import org.springframework.jdbc.support.rowset.ResultSetWrappingSqlRowSet;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 
-import javax.sql.DataSource;
-import java.sql.Driver;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Spliterator;
@@ -25,29 +22,8 @@ import java.util.stream.StreamSupport;
 @Configuration
 public class ApplicationConfig {
 
-    @Autowired
-    private DataSourceProperties dataSourceProperties;
-
-    @Autowired
-    private ApplicationProperties applicationProperties;
-
     @Bean
-    DataSource dataSource() {
-        Driver driver = new org.apache.phoenix.jdbc.PhoenixDriver();
-        String url = dataSourceProperties.getUrl();
-        DataSource dataSource = new SimpleDriverDataSource(driver,url);
-        return dataSource;
-    }
-
-    @Bean
-    JdbcTemplate jdbcTemplate(final DataSource dataSource) {
-        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
-        jdbcTemplate.setFetchSize(applicationProperties.getDatasource().getFetchSize());
-        return jdbcTemplate;
-    }
-
-    @Bean
-    public QueryStream streamer(JdbcTemplate jdbcTemplate) {
+    public QueryStream streamer(final JdbcTemplate jdbcTemplate) {
         return new QueryStream() {
             @Override
             public <T> T streamQuery(String sql, Function<Stream<SqlRowSet>, ? extends T> streamer, Object... args) {
@@ -63,7 +39,7 @@ public class ApplicationConfig {
                         private boolean first = true;
                         @Override
                         public boolean hasNext() {
-                            return !rowSet.isLast();
+                            return rowSet.next();
                         }
 
                         @Override

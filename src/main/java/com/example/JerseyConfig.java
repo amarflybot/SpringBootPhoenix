@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 public class JerseyConfig extends ResourceConfig{
 
     public JerseyConfig() {
-        register(DataSourceResource.class);
+        register(WebStatResource.class);
     }
 
 

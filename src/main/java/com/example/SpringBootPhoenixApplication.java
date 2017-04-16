@@ -2,10 +2,14 @@ package com.example;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.support.SpringBootServletInitializer;
+import org.springframework.context.annotation.Bean;
+
+import javax.sql.DataSource;
 
 @SpringBootApplication
 @EnableConfigurationProperties(ApplicationProperties.class)
@@ -17,5 +21,15 @@ public class SpringBootPhoenixApplication extends SpringBootServletInitializer {
 		new SpringBootPhoenixApplication()
 				.configure(new SpringApplicationBuilder(SpringBootPhoenixApplication.class))
 				.run(args);
+	}
+
+	@Bean
+	CommandLineRunner commandLineRunner(final DataSource dataSource){
+		return new CommandLineRunner() {
+			@Override
+			public void run(String... strings) throws Exception {
+				System.out.println(dataSource);
+			}
+		};
 	}
 }
