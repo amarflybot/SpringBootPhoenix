@@ -1,7 +1,6 @@
 package com.example;
 
 
-import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.pool.HikariProxyResultSet;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -10,6 +9,7 @@ import org.springframework.jdbc.support.rowset.ResultSetWrappingSqlRowSet;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.springframework.stereotype.Component;
 
+import javax.sql.DataSource;
 import java.io.Closeable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -30,8 +30,9 @@ import java.util.stream.StreamSupport;
 public class JdbcStream extends JdbcTemplate {
 
     @Autowired
-    public JdbcStream(HikariDataSource dataSource) {
+    public JdbcStream(DataSource dataSource, final ApplicationProperties applicationProperties) {
         super(dataSource);
+        setFetchSize(applicationProperties.getDatasource().getFetchSize());
     }
 
     public <T> T streamQuery(String sql, Function<Stream<SqlRow>, ? extends T> streamer, Object... args) {
@@ -66,6 +67,7 @@ public class JdbcStream extends JdbcTemplate {
 
     public StreamableQuery streamableQuery(String sql, Object... args) throws SQLException {
         Connection connection = DataSourceUtils.getConnection(getDataSource());
+        logger.info(connection);
         PreparedStatement preparedStatement = connection.prepareStatement(sql);
         newArgPreparedStatementSetter(args).setValues(preparedStatement);
         return new StreamableQuery(connection, preparedStatement);
