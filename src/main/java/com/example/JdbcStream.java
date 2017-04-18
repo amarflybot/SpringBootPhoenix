@@ -69,7 +69,7 @@ public class JdbcStream extends JdbcTemplate {
         Connection connection = DataSourceUtils.getConnection(getDataSource());
         logger.info(connection);
         PreparedStatement preparedStatement = connection.prepareStatement(sql);
-        preparedStatement.setFetchSize(1);
+        //preparedStatement.setFetchSize(1);
         newArgPreparedStatementSetter(args).setValues(preparedStatement);
         return new StreamableQuery(connection, preparedStatement);
     }

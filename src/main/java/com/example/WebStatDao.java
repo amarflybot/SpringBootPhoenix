@@ -104,5 +104,7 @@ public class WebStatDao {
         }
         writer.write("]");
         writer.flush();
+        writer.close();
+        streamableQuery.close();
     }
 }
