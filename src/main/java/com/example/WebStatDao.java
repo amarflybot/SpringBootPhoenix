@@ -69,4 +69,40 @@ public class WebStatDao {
             }
         };
     }
+
+    public void getStreamingOutputForSql(String sql, Object[] args, PrintWriter writer) throws SQLException {
+        JdbcStream.StreamableQuery streamableQuery = jdbcStream.streamableQuery(sql, args);
+        Gson gson = new Gson();
+        writer.write("[");
+        final boolean[] first = {false};
+        try {
+            streamableQuery
+                    .stream()
+                    .map(sqlRow -> {
+                        try {
+                            WebStat webStat = WebStatMapper.mapWebStat(sqlRow);
+                            return webStat;
+                        } catch (RuntimeException e) {
+                            throw new RuntimeException("Cannot convert SqlRom to WebStat");
+                        }
+                    }).reduce((webStat1, webStat2) -> {
+                Assert.notNull(webStat1, "Webstat cannot be null");
+                if (first[0]) {
+                    writer.write(",");
+                } else if (!first[0]){
+                    writer.write(gson.toJson(webStat1));
+                    writer.write(",");
+                }
+                first[0] = true;
+                writer.write(gson.toJson(webStat2));
+                writer.flush();
+                //TimeUnit.MILLISECONDS.sleep(500);
+                return webStat1;
+            });
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        writer.write("]");
+        writer.flush();
+    }
 }
