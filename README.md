@@ -9,3 +9,5 @@ In this case, the SQL statement itself could easily have done the filter express
 The end result is a simple way to use the Java 8 Stream API on SQL results in Spring Framework.
 
 Added Phoenix connection pooling support.
+
+https://www.linkedin.com/pulse/simple-spring-micro-service-query-hive-using-mourya-rajala?articleId=8865920639508502242
